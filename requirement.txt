@@ -1,0 +1,7 @@
+torch==2.4.0
+torchvision==0.19.0
+torchaudio==2.4.0
+--index-url https://download.pytorch.org/whl/cu124
+PyYaml==6.0.2
+tqdm==4.67.1
+wandb==0.20.1
