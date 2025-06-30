@@ -1,0 +1,44 @@
+from torchvision import transforms
+from torchvision.datasets import ImageNet
+
+from utils.log_utils import initialize_logger, display_message
+from utils.torch_utils import torch_distributed_zero_first
+
+# Initialize logging
+logger = initialize_logger(__name__)
+
+def read_imagenet_dataset(image_size:int, data_dir: str, local_rank: int):
+    """
+    Load ImageNet dataset (Only the primary process will load data).
+    Args:
+        image_size: the size of the input image.
+        data_dir: the root directory of ImageNet dataset.
+        local_rank: current process index. (-1 means unlaunch DDP mode)
+
+    Returns:
+        train_dataset, val_dataset: ImageNet dataset.
+    """
+    # Preprocessing of training and validation
+    train_transforms = transforms.Compose([
+        transforms.RandomResizedCrop(image_size),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
+    ])
+
+    val_transforms = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(image_size),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
+    ])
+
+    # Use context to make sure that only the main process will read data.
+    with torch_distributed_zero_first(local_rank):
+        display_message(logger, local_rank, f"Loading ImageNet dataset from {data_dir}.")
+        train_dataset = ImageNet(data_dir, split='train', transform=train_transforms)
+        val_dataset = ImageNet(data_dir, split='val', transform=val_transforms)
+
+    return train_dataset, val_dataset
