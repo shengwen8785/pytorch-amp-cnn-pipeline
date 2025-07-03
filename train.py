@@ -10,7 +10,7 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.amp import GradScaler, autocast
 
-from datasets.create_datasets import read_imagenet_dataset
+from datasets.create_datasets import read_imagenette_dataset
 from models.create_models import initialize_models
 from utils.file_utils import load_yaml, create_dirs
 from utils.log_utils import initialize_logger, display_message
@@ -265,7 +265,7 @@ def main():
 
     # Create the 'train_dataset' and the 'valid_dataset'
     image_size = configs['image_size']
-    train_dataset, val_dataset = read_imagenet_dataset(image_size, configs['path'], global_rank)
+    train_dataset, val_dataset = read_imagenette_dataset(image_size, configs['path'], configs['size'], global_rank)
 
     # Use 'DistributedSampler' to ensure reasonable data distribution
     train_sampler = DistributedSampler(train_dataset) if global_rank != -1 else None
