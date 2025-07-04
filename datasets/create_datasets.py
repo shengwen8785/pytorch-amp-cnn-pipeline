@@ -1,11 +1,11 @@
 from torchvision import transforms
 from torchvision.datasets import ImageNet, Imagenette
 
-from utils.log_utils import initialize_logger, display_message
+from utils.log_utils import get_logger, display_message
 from utils.torch_utils import torch_distributed_zero_first
 
-# Initialize logging
-logger = initialize_logger(__name__)
+# Get global logger (no need to pass dynamic names here)
+logger = get_logger(__name__)
 
 def read_imagenet_dataset(image_size:int, data_dir: str, local_rank: int):
     """

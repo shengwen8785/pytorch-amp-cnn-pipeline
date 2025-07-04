@@ -1,10 +1,10 @@
 from torchvision.models import get_model
 
-from utils.log_utils import initialize_logger, display_message
+from utils.log_utils import get_logger, display_message
 from utils.torch_utils import torch_distributed_zero_first
 
-# Initialize logging
-logger = initialize_logger(__name__)
+# Get global logger (no need to pass dynamic names here)
+logger = get_logger(__name__)
 
 def initialize_models(local_rank:int, configs:dict):
     """

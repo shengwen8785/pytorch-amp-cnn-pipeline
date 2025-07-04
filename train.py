@@ -13,13 +13,11 @@ from torch.amp import GradScaler, autocast
 from datasets.create_datasets import read_imagenette_dataset
 from models.create_models import initialize_models
 from utils.file_utils import load_yaml, create_dirs
-from utils.log_utils import initialize_logger, display_message
+from utils.log_utils import get_logger, display_message
 from utils.torch_utils import initialize_device, cleanup
 from utils.wandb_utils import initialize_wandb
 
-# Initialize logging
-logger = initialize_logger(__name__)
-
+global logger
 
 def train_on_epoch_with_amp(rank, epoch, epochs, train_loader, model, optimizer, scheduler, criterion, scaler, device):
     """
@@ -255,6 +253,13 @@ def main():
 
     # Parse command line arguments
     args = parser_args()
+
+    # Dynamically initialize logger based on args
+    logger = get_logger(
+        __name__,
+        wandb_project=args.wandb_project,
+        wandb_name=args.wandb_name
+    )
 
     # Load the training configuration
     configs = load_yaml(args.config)
