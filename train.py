@@ -279,7 +279,7 @@ def main():
     val_loader = DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers, pin_memory=configs['pin_memory'])
 
     # Load model architecture and initialize weights
-    model = initialize_models( configs)
+    model = initialize_models(configs)
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model) if num_gpus > 1 else model
     model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank) if num_gpus > 1 else model
     model.to(device)
