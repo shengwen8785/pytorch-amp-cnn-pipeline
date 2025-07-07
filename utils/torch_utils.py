@@ -5,7 +5,7 @@ from torch.backends import cudnn
 from contextlib import contextmanager
 from datetime import timedelta
 
-from log_utils import get_logger, display_message
+from utils.log_utils import get_logger, display_message
 
 logger = get_logger(file_name=__file__)
 
