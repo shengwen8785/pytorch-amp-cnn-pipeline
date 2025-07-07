@@ -5,8 +5,6 @@ from torchvision.datasets import ImageNet, Imagenette
 from utils.log_utils import get_logger
 from utils.torch_utils import torch_distributed_zero_first
 
-# Get global logger (no need to pass dynamic names here)
-logger = get_logger(__name__)
 
 def read_imagenet_dataset(image_size:int, data_dir: str):
     """
@@ -18,6 +16,8 @@ def read_imagenet_dataset(image_size:int, data_dir: str):
     Returns:
         train_dataset, val_dataset: ImageNet dataset.
     """
+    logger = get_logger(file_name=__name__)
+
     # Preprocessing of training and validation
     train_transforms = transforms.Compose([
         transforms.RandomResizedCrop(image_size),
@@ -54,6 +54,8 @@ def read_imagenette_dataset(image_size:int, data_dir: str, size:str):
     Returns:
         train_dataset, val_dataset: ImageNet dataset.
     """
+    logger = get_logger(file_name=__name__)
+
     # Preprocessing of training and validation
     train_transforms = transforms.Compose([
         transforms.RandomResizedCrop(image_size),
