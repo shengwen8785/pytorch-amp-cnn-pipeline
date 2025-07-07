@@ -14,12 +14,12 @@ from datasets.create_datasets import read_imagenette_dataset
 from models.create_models import initialize_models
 from utils.file_utils import load_yaml, create_dirs
 from utils.log_utils import get_logger, display_message
-from utils.torch_utils import initialize_device, cleanup
+from utils.torch_utils import initialize_device, is_main_process, cleanup
 from utils.wandb_utils import initialize_wandb
 
 global logger
 
-def train_on_epoch_with_amp(rank, epoch, epochs, train_loader, model, optimizer, scheduler, criterion, scaler, device):
+def train_on_epoch_with_amp(epoch, epochs, train_loader, model, optimizer, scheduler, criterion, scaler, device):
     """
     Train on one epoch with AMP.
 
@@ -27,7 +27,6 @@ def train_on_epoch_with_amp(rank, epoch, epochs, train_loader, model, optimizer,
         Pytorch official documentation: https://docs.pytorch.org/docs/stable/notes/amp_examples.html
 
     Args:
-        rank: the rank of the current process. -1 if not using distributed training.
         epoch: the current epoch number.
         epochs: the total number of epochs to train.
         train_loader: DataLoader, the training data loader.
@@ -44,7 +43,7 @@ def train_on_epoch_with_amp(rank, epoch, epochs, train_loader, model, optimizer,
     """
     model.train()  # Inform layers such as BatchNorm, Dropout
 
-    if rank in [-1, 0]:
+    if is_main_process():
         pbar = tqdm(train_loader, total=len(train_loader), desc=f"(Train) Epoch {epoch}/{epochs - 1}", position=0)
     else:
         pbar = train_loader
@@ -90,7 +89,7 @@ def train_on_epoch_with_amp(rank, epoch, epochs, train_loader, model, optimizer,
         train_acc += acc
 
         # Only update the progress bar on the main process.
-        if rank in [-1, 0]:
+        if is_main_process():
             pbar.set_description(f"(Train) Epoch {epoch + 1}/{epochs} | Loss: {loss:.4g} | Acc: {acc:.4g}")
 
     # Update the learning rate if needed
@@ -103,12 +102,11 @@ def train_on_epoch_with_amp(rank, epoch, epochs, train_loader, model, optimizer,
     return avg_train_loss, avg_train_acc
 
 
-def train_on_epoch(rank, epoch, epochs, train_loader, model, optimizer, scheduler, criterion, device):
+def train_on_epoch(epoch, epochs, train_loader, model, optimizer, scheduler, criterion, device):
     """
     Train on one epoch without amp.
 
     Args:
-        rank: the rank of the current process. -1 if not using distributed training.
         epoch: the current epoch number.
         epochs: the total number of epochs to train.
         train_loader: DataLoader, the training data loader.
@@ -124,7 +122,7 @@ def train_on_epoch(rank, epoch, epochs, train_loader, model, optimizer, schedule
     """
     model.train()  # Inform layers such as BatchNorm, Dropout
 
-    if rank in [-1, 0]:
+    if is_main_process():
         pbar = tqdm(train_loader, total=len(train_loader), desc=f"(Train) Epoch {epoch}/{epochs - 1}", position=0)
     else:
         pbar = train_loader
@@ -157,7 +155,7 @@ def train_on_epoch(rank, epoch, epochs, train_loader, model, optimizer, schedule
         train_acc += acc
 
         # Only update the progress bar on the main process.
-        if rank in [-1, 0]:
+        if is_main_process():
             pbar.set_description(f"(Train) Epoch {epoch + 1}/{epochs} | Loss: {loss:.4g} | Acc: {acc:.4g}")
 
     # Update the learning rate if needed
@@ -170,12 +168,11 @@ def train_on_epoch(rank, epoch, epochs, train_loader, model, optimizer, schedule
     return avg_train_loss, avg_train_acc
 
 
-def val_on_epoch(rank, epoch, epochs, val_loader, model, criterion, device):
+def val_on_epoch(epoch, epochs, val_loader, model, criterion, device):
     """
     Validate on one epoch.
 
     Args:
-        rank: the rank of the current process. -1 if not using distributed training.
         epoch: the current epoch number.
         epochs: the total number of epochs to train.
         val_loader: DataLoader, the validation data loader.
@@ -190,7 +187,7 @@ def val_on_epoch(rank, epoch, epochs, val_loader, model, criterion, device):
     """
     model.eval()
 
-    if rank in [-1, 0]:
+    if is_main_process():
         pbar = tqdm(val_loader, total=len(val_loader), desc=f"(Validate) Epoch {epoch + 1}/{epochs}", position=0)
     else:
         pbar = val_loader
@@ -214,7 +211,7 @@ def val_on_epoch(rank, epoch, epochs, val_loader, model, criterion, device):
             val_acc += acc
 
             # Only update the progress bar on the main process.
-            if rank in [-1, 0]:
+            if is_main_process():
                 pbar.set_description(f"(Validation) Epoch {epoch + 1}/{epochs} | Loss: {loss:.4g} | Acc: {acc:.4g}")
 
     # Calculate the average loss and accuracy.
@@ -246,10 +243,7 @@ def parser_args():
 
 def main():
     # Get environment variables
-    global_rank = int(os.getenv("GLOBAL_RANK", -1))
     local_rank = int(os.getenv("LOCAL_RANK", -1))
-    world_size = int(os.getenv("WORLD_SIZE", 1))
-    device = initialize_device()
 
     # Parse command line arguments
     args = parser_args()
@@ -261,20 +255,23 @@ def main():
         wandb_name=args.wandb_name
     )
 
+    # Set up the running environment
+    device, num_gpus = initialize_device()
+
     # Load the training configuration
     configs = load_yaml(args.config)
 
     # Initialize the Weights & Biases
-    if args.wandb and global_rank in [-1, 0]:
+    if args.wandb and is_main_process():
         initialize_wandb(args.wandb_project, args.wandb_name, configs)
 
     # Create the 'train_dataset' and the 'valid_dataset'
     image_size = configs['image_size']
-    train_dataset, val_dataset = read_imagenette_dataset(image_size, configs['path'], configs['size'], global_rank)
+    train_dataset, val_dataset = read_imagenette_dataset(image_size, configs['path'], configs['size'])
 
     # Use 'DistributedSampler' to ensure reasonable data distribution
-    train_sampler = DistributedSampler(train_dataset) if global_rank != -1 else None
-    val_sampler = DistributedSampler(val_dataset) if global_rank != -1 else None
+    train_sampler = DistributedSampler(train_dataset) if num_gpus > 1 else None
+    val_sampler = DistributedSampler(val_dataset) if num_gpus > 1 else None
 
     # Create the 'train_loader' and the 'valid_loader'
     batch_size, num_workers = configs['batch_size'], configs['num_workers']
@@ -282,9 +279,9 @@ def main():
     val_loader = DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers, pin_memory=configs['pin_memory'])
 
     # Load model architecture and initialize weights
-    model = initialize_models(global_rank, configs)
-    model = nn.SyncBatchNorm.convert_sync_batchnorm(model) if global_rank != -1 else model
-    model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank) if global_rank != -1 else model
+    model = initialize_models( configs)
+    model = nn.SyncBatchNorm.convert_sync_batchnorm(model) if num_gpus > 1 else model
+    model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank) if num_gpus > 1 else model
     model.to(device)
 
     # Optimizer configuration
@@ -306,22 +303,22 @@ def main():
     best_val_acc = 0.0
     for epoch in range(epochs):
 
-        if world_size > 1:
+        if num_gpus > 1:
             train_sampler.set_epoch(epoch)
             val_sampler.set_epoch(epoch)
 
         if args.amp:  # DDP mode
-            display_message(logger, global_rank, f"Using Automatic Mixed Precision (AMP) training.")
-            avg_train_loss, avg_train_acc = train_on_epoch_with_amp(global_rank, epoch, epochs, train_loader, model, optimizer, scheduler, criterion, scaler, device)
-            avg_val_loss, avg_val_acc = val_on_epoch(global_rank, epoch, epochs, val_loader, model, criterion, device)
+            display_message(logger, f"Using Automatic Mixed Precision (AMP) training.")
+            avg_train_loss, avg_train_acc = train_on_epoch_with_amp(epoch, epochs, train_loader, model, optimizer, scheduler, criterion, scaler, device)
+            avg_val_loss, avg_val_acc = val_on_epoch(epoch, epochs, val_loader, model, criterion, device)
 
         else:
-            display_message(logger, global_rank, f"Using Full Precision (FP32) training.")
-            avg_train_loss, avg_train_acc = train_on_epoch(global_rank, epoch, epochs, train_loader, model, optimizer, scheduler, criterion, device)
-            avg_val_loss, avg_val_acc = val_on_epoch(global_rank, epoch, epochs, val_loader, model, criterion, device)
+            display_message(logger, f"Using Full Precision (FP32) training.")
+            avg_train_loss, avg_train_acc = train_on_epoch( epoch, epochs, train_loader, model, optimizer, scheduler, criterion, device)
+            avg_val_loss, avg_val_acc = val_on_epoch(epoch, epochs, val_loader, model, criterion, device)
 
         # Record the values during the training process.
-        if global_rank in [-1, 0]:
+        if is_main_process():
             current_lr = optimizer.param_groups[0]['lr']
             wandb.log({
                 'epoch': epoch + 1,
@@ -331,22 +328,22 @@ def main():
                 'val_acc': avg_val_acc,
                 'learning_rate': current_lr
             })
-            display_message(logger, global_rank, f"Epoch {epoch + 1}/{epochs} | Train Loss: {avg_train_loss:.4g} | Train Acc: {avg_train_acc:.4g}")
-            display_message(logger, global_rank, f"Epoch {epoch + 1}/{epochs} | Val Loss: {avg_val_loss:.4g} | Val Acc: {avg_val_acc:.4g}")
+            display_message(logger, f"Epoch {epoch + 1}/{epochs} | Train Loss: {avg_train_loss:.4g} | Train Acc: {avg_train_acc:.4g}")
+            display_message(logger, f"Epoch {epoch + 1}/{epochs} | Val Loss: {avg_val_loss:.4g} | Val Acc: {avg_val_acc:.4g}")
 
         # Save the weights for every 5 epochs.
-        if epoch%5 == 0 and global_rank in [-1, 0]:
+        if epoch%5 == 0 and is_main_process():
             save_path = f"{args.weights}/{args.wandb_project}/{args.wandb_name}/model_{epoch}.pth"
             create_dirs(save_path)
             torch.save(model.state_dict(), save_path)
-            display_message(logger, global_rank, f"Model saved at epoch {epoch}.")
+            display_message(logger, f"Model saved at epoch {epoch}.")
 
         # Save the best weights
-        if avg_val_acc > best_val_acc and global_rank in [-1, 0]:
+        if avg_val_acc > best_val_acc and is_main_process():
             best_val_acc = avg_val_acc
             save_path = f"{args.weights}/{args.wandb_project}/{args.wandb_name}/best_model_{epoch}.pth"
             torch.save(model.state_dict(), save_path)
-            display_message(logger, global_rank, f"Best model saved at epoch {epoch}.")
+            display_message(logger, f"Best model saved at epoch {epoch}.")
 
     cleanup()
 

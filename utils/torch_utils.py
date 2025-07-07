@@ -16,6 +16,7 @@ def initialize_device():
 
     Returns:
         device: torch.device('cuda') or torch.device('cpu')
+        num_gpus: the number of available GPUs.
     """
     # Check available GPU number
     num_gpus = torch.cuda.device_count()
@@ -28,41 +29,51 @@ def initialize_device():
         torch.cuda.set_device(local_rank)
         dist.init_process_group(backend="nccl", timeout=timedelta(hours=2))
         device = torch.device("cuda", local_rank)
-        display_message(logger, local_rank, f"Using Distributed Data Parallel (DDP) on {num_gpus} GPUs.")
+        display_message(logger, f"Using Distributed Data Parallel (DDP) on {num_gpus} GPUs.")
 
     elif num_gpus == 1:
         # Run on a single GPU
         device = torch.device("cuda:0")
-        display_message(logger, 0, f"Using single GPU: {torch.cuda.get_device_name(0)}.")
+        display_message(logger, f"Using single GPU: {torch.cuda.get_device_name(0)}.")
 
     else:
         # No GPU resource, use CPU
+        num_gpus = 0
         device = torch.device("cpu")
-        display_message(logger, 0, "Using CPU as no GPU is available.", level="WARNING")
+        display_message(logger, "Using CPU as no GPU is available.", level="WARNING")
 
     # Faster training is possible due to fixed input size and consistent architecture.
     cudnn.benchmark = True
 
-    return device
+    return device, num_gpus
 
 
 def cleanup():
     dist.destroy_process_group()
     torch.cuda.empty_cache()
-    display_message(logger, 0, "Distributed training process has been terminated.")
+    display_message(logger, "Distributed training process has been terminated.")
+
+
+def is_main_process():
+    """
+    Determine whether the current process is the main process.
+
+    Returns:
+        bool: True if the current process is the main process, False otherwise.
+    """
+    return not dist.is_initialized() or dist.get_rank() == 0
 
 
 @contextmanager
-def torch_distributed_zero_first(rank: int):
+def torch_distributed_zero_first():
     """
     Let distributed processes wait for the rank = = 0 process to complete the necessary operations.
-    Args:
-        rank: GPU index in whole distributed training.
+
     """
-    if rank not in [-1, 0]:
+    if not is_main_process():
         dist.barrier()  # Block non-main processes and wait for the main process
     yield
-    if rank == 0:
+    if is_main_process():
         dist.barrier()  # Let other processes continue conducting after the main process completed.
 
 
