@@ -4,7 +4,7 @@ weights: null  # Or Set "DEFAULT" to use pre-trained weights.
 path: data/imagenette  # the path to the root directory of the dataset.
 
 # Hyper-parameters
-epoch: 100
+epochs: 100
 batch_size: 128
 image_size: 224
 size: full  # original image size
