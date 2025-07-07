@@ -274,7 +274,7 @@ def main():
     val_sampler = DistributedSampler(val_dataset) if num_gpus > 1 else None
 
     # Create the 'train_loader' and the 'valid_loader'
-    batch_size, num_workers = configs['batch_size'], configs['num_workers']
+    batch_size, num_workers = configs['batch_size'], configs['workers']
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers, pin_memory=configs['pin_memory'])
     val_loader = DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers, pin_memory=configs['pin_memory'])
 
@@ -347,6 +347,7 @@ def main():
             logger.info(f"Best model saved at epoch {epoch}.")
 
     cleanup()
+    wandb.finish()
 
 if __name__ == '__main__':
     main()
