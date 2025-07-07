@@ -17,7 +17,6 @@ from utils.log_utils import get_logger
 from utils.torch_utils import initialize_device, is_main_process, cleanup
 from utils.wandb_utils import initialize_wandb
 
-global logger
 
 def train_on_epoch_with_amp(epoch, epochs, train_loader, model, optimizer, scheduler, criterion, scaler, device):
     """
@@ -250,7 +249,7 @@ def main():
 
     # Dynamically initialize logger based on args
     logger = get_logger(
-        __name__,
+        file_name=__name__,
         wandb_project=args.wandb_project,
         wandb_name=args.wandb_name
     )
