@@ -280,8 +280,8 @@ def main():
     # Load model architecture and initialize weights
     model = initialize_models(configs)
     model = nn.SyncBatchNorm.convert_sync_batchnorm(model) if num_gpus > 1 else model
+    model = model.to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank], output_device=local_rank) if num_gpus > 1 else model
-    model.to(device)
 
     # Optimizer configuration
     lr, momentum, weight_decay = configs['lr'], configs['momentum'], configs['weight_decay']
