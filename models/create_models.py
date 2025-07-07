@@ -1,6 +1,6 @@
 from torchvision.models import get_model
 
-from utils.log_utils import get_logger, display_message
+from utils.log_utils import get_logger
 from utils.torch_utils import torch_distributed_zero_first
 
 # Get global logger (no need to pass dynamic names here)
@@ -16,9 +16,9 @@ def initialize_models(configs:dict):
         model: model architecture.
 
     """
-    display_message(logger, f"Loading model architecture and initialing weights: {configs['model']}")
     with torch_distributed_zero_first():
+        logger.info(f"Loading model architecture and initialing weights: {configs['model']}")
         model = get_model(configs['model'], weights=configs['weights'], num_classes=configs['classes'])
-    display_message(logger, f"Model architecture:/n{model}")
+        logger.info(f"Model architecture:/n{model}")
 
     return model

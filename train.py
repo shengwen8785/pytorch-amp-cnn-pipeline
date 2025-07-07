@@ -13,7 +13,7 @@ from torch.amp import GradScaler, autocast
 from datasets.create_datasets import read_imagenette_dataset
 from models.create_models import initialize_models
 from utils.file_utils import load_yaml, create_dirs
-from utils.log_utils import get_logger, display_message
+from utils.log_utils import get_logger
 from utils.torch_utils import initialize_device, is_main_process, cleanup
 from utils.wandb_utils import initialize_wandb
 
@@ -308,12 +308,13 @@ def main():
             val_sampler.set_epoch(epoch)
 
         if args.amp:  # DDP mode
-            display_message(logger, f"Using Automatic Mixed Precision (AMP) training.")
+            if is_main_process():
+                logger.info(f"Using Automatic Mixed Precision (AMP) training.")
             avg_train_loss, avg_train_acc = train_on_epoch_with_amp(epoch, epochs, train_loader, model, optimizer, scheduler, criterion, scaler, device)
             avg_val_loss, avg_val_acc = val_on_epoch(epoch, epochs, val_loader, model, criterion, device)
 
         else:
-            display_message(logger, f"Using Full Precision (FP32) training.")
+            logger.info(f"Using Full Precision (FP32) training.")
             avg_train_loss, avg_train_acc = train_on_epoch( epoch, epochs, train_loader, model, optimizer, scheduler, criterion, device)
             avg_val_loss, avg_val_acc = val_on_epoch(epoch, epochs, val_loader, model, criterion, device)
 
@@ -328,22 +329,22 @@ def main():
                 'val_acc': avg_val_acc,
                 'learning_rate': current_lr
             })
-            display_message(logger, f"Epoch {epoch + 1}/{epochs} | Train Loss: {avg_train_loss:.4g} | Train Acc: {avg_train_acc:.4g}")
-            display_message(logger, f"Epoch {epoch + 1}/{epochs} | Val Loss: {avg_val_loss:.4g} | Val Acc: {avg_val_acc:.4g}")
+            logger.info(f"Epoch {epoch + 1}/{epochs} | Train Loss: {avg_train_loss:.4g} | Train Acc: {avg_train_acc:.4g}")
+            logger.info(f"Epoch {epoch + 1}/{epochs} | Val Loss: {avg_val_loss:.4g} | Val Acc: {avg_val_acc:.4g}")
 
         # Save the weights for every 5 epochs.
         if epoch%5 == 0 and is_main_process():
             save_path = f"{args.weights}/{args.wandb_project}/{args.wandb_name}/model_{epoch}.pth"
             create_dirs(save_path)
             torch.save(model.state_dict(), save_path)
-            display_message(logger, f"Model saved at epoch {epoch}.")
+            logger.info(f"Model saved at epoch {epoch}.")
 
         # Save the best weights
         if avg_val_acc > best_val_acc and is_main_process():
             best_val_acc = avg_val_acc
             save_path = f"{args.weights}/{args.wandb_project}/{args.wandb_name}/best_model_{epoch}.pth"
             torch.save(model.state_dict(), save_path)
-            display_message(logger, f"Best model saved at epoch {epoch}.")
+            logger.info(f"Best model saved at epoch {epoch}.")
 
     cleanup()
 

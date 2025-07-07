@@ -2,8 +2,6 @@ import os
 import logging
 from pathlib import Path
 
-from utils.torch_utils import is_main_process
-
 _logger = None  # Define a global logger variable
 
 def get_logger(file_name="__main__", log_name="app.log", log_dir="./logs", log_level=logging.INFO, console_output=True, wandb_project=None, wandb_name=None):
@@ -66,30 +64,6 @@ def get_logger(file_name="__main__", log_name="app.log", log_dir="./logs", log_l
         _logger = logger  # Cache the logger object
 
     return _logger
-
-
-def display_message(logger: logging.Logger, info: str = "", level: str = "INFO"):
-    """
-    Only display messages on rank 0.
-
-    Args:
-        logger (logging.Logger): logger。
-        info (str): the message to be displayed and recorded in the log file.
-        level (str): logging level, such as "INFO", "WARNING", "ERROR".
-    """
-    if is_main_process():
-        if level.upper() == "INFO":
-            logger.info(info)
-        elif level.upper() == "WARNING":
-            logger.warning(info)
-        elif level.upper() == "ERROR":
-            logger.error(info)
-        elif level.upper() == "DEBUG":
-            logger.debug(info)
-        elif level.upper() == "CRITICAL":
-            logger.critical(info)
-        else:
-            raise ValueError(f"Unsupported log level: {level}")
 
 
 if __name__ == "__main__":

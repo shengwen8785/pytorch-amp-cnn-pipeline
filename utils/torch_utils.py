@@ -5,7 +5,7 @@ from torch.backends import cudnn
 from contextlib import contextmanager
 from datetime import timedelta
 
-from utils.log_utils import get_logger, display_message
+from utils.log_utils import get_logger
 
 logger = get_logger(file_name=__file__)
 
@@ -29,18 +29,18 @@ def initialize_device():
         torch.cuda.set_device(local_rank)
         dist.init_process_group(backend="nccl", timeout=timedelta(hours=2))
         device = torch.device("cuda", local_rank)
-        display_message(logger, f"Using Distributed Data Parallel (DDP) on {num_gpus} GPUs.")
+        logger.info(f"Using Distributed Data Parallel (DDP) on {num_gpus} GPUs.")
 
     elif num_gpus == 1:
         # Run on a single GPU
         device = torch.device("cuda:0")
-        display_message(logger, f"Using single GPU: {torch.cuda.get_device_name(0)}.")
+        logger.info(f"Using single GPU: {torch.cuda.get_device_name(0)}.")
 
     else:
         # No GPU resource, use CPU
         num_gpus = 0
         device = torch.device("cpu")
-        display_message(logger, "Using CPU as no GPU is available.", level="WARNING")
+        logger.warning("Using CPU as no GPU is available.")
 
     # Faster training is possible due to fixed input size and consistent architecture.
     cudnn.benchmark = True
@@ -51,7 +51,7 @@ def initialize_device():
 def cleanup():
     dist.destroy_process_group()
     torch.cuda.empty_cache()
-    display_message(logger, "Distributed training process has been terminated.")
+    logger.info("Distributed training process has been terminated.")
 
 
 def is_main_process():
