@@ -7,7 +7,15 @@ from datetime import timedelta
 
 from utils.log_utils import get_logger
 
-logger = get_logger(file_name=__file__)
+def is_main_process():
+    """
+    Determine whether the current process is the main process.
+
+    Returns:
+        bool: True if the current process is the main process, False otherwise.
+    """
+    return not dist.is_initialized() or dist.get_rank() == 0
+
 
 def initialize_device():
     """
@@ -18,6 +26,7 @@ def initialize_device():
         device: torch.device('cuda') or torch.device('cpu')
         num_gpus: the number of available GPUs.
     """
+    logger = get_logger(file_name=__name__)
     # Check available GPU number
     num_gpus = torch.cuda.device_count()
 
@@ -29,7 +38,9 @@ def initialize_device():
         torch.cuda.set_device(local_rank)
         dist.init_process_group(backend="nccl", timeout=timedelta(hours=2))
         device = torch.device("cuda", local_rank)
-        logger.info(f"Using Distributed Data Parallel (DDP) on {num_gpus} GPUs.")
+
+        if is_main_process():
+            logger.info(f"Using Distributed Data Parallel (DDP) on {num_gpus} GPUs.")
 
     elif num_gpus == 1:
         # Run on a single GPU
@@ -51,17 +62,8 @@ def initialize_device():
 def cleanup():
     dist.destroy_process_group()
     torch.cuda.empty_cache()
+    logger = get_logger(file_name=__name__)
     logger.info("Distributed training process has been terminated.")
-
-
-def is_main_process():
-    """
-    Determine whether the current process is the main process.
-
-    Returns:
-        bool: True if the current process is the main process, False otherwise.
-    """
-    return not dist.is_initialized() or dist.get_rank() == 0
 
 
 @contextmanager
