@@ -28,7 +28,7 @@ def get_logger(file_name="__main__", log_name="app.log", log_dir="./logs", log_l
         # Ensure 'log_dir' existed
         log_dir_path = os.path.join(root_path, log_dir)
         if not os.path.exists(log_dir_path):
-            os.makedirs(log_dir_path)
+            os.makedirs(log_dir_path, exist_ok=True)
 
         # Define dynamic file name for logs
         if wandb_project and wandb_name:
@@ -46,19 +46,20 @@ def get_logger(file_name="__main__", log_name="app.log", log_dir="./logs", log_l
         # Prevent from conducting several handlers to cause duplicate messages.
         if not logger.handlers:
 
+            # Set the log file format
+            formatter = logging.Formatter("%(asctime)s - %(filename)s - %(levelname)s - %(message)s")
+
             # Set a file handler
             file_handler = logging.FileHandler(log_file_path, mode='a', encoding="utf-8")
             file_handler.setLevel(log_level)
-            file_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-            file_handler.setFormatter(file_formatter)
+            file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
 
             if console_output:
                 # Set a standard output handler
                 console_handler = logging.StreamHandler()
                 console_handler.setLevel(log_level)
-                console_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-                console_handler.setFormatter(console_formatter)
+                console_handler.setFormatter(formatter)
                 logger.addHandler(console_handler)
 
         _logger = logger  # Cache the logger object
@@ -67,5 +68,6 @@ def get_logger(file_name="__main__", log_name="app.log", log_dir="./logs", log_l
 
 
 if __name__ == "__main__":
-    logger = get_logger(file_name=__file__)
+    print(__name__)
+    logger = get_logger(file_name=__name__)
     logger.info("This is a test log.")
