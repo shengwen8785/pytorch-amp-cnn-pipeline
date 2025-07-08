@@ -301,12 +301,12 @@ def main():
         if args.amp:  # DDP mode
             if is_main_process():
                 logger.info(f"Using Automatic Mixed Precision (AMP) training.")
-            avg_train_loss, avg_train_acc = train_on_epoch_with_amp(epoch, epochs, train_loader, model, optimizer, scheduler, criterion, scaler, device)
+            avg_train_loss, avg_train_acc = train_on_epoch_with_amp(epoch, epochs, train_loader, model, optimizer, criterion, scaler, device)
             avg_val_loss, avg_val_acc = val_on_epoch(epoch, epochs, val_loader, model, criterion, device)
 
         else:
             logger.info(f"Using Full Precision (FP32) training.")
-            avg_train_loss, avg_train_acc = train_on_epoch( epoch, epochs, train_loader, model, optimizer, scheduler, criterion, device)
+            avg_train_loss, avg_train_acc = train_on_epoch( epoch, epochs, train_loader, model, optimizer, criterion, device)
             avg_val_loss, avg_val_acc = val_on_epoch(epoch, epochs, val_loader, model, criterion, device)
 
         # Record the values during the training process.
