@@ -18,7 +18,7 @@ from utils.torch_utils import initialize_device, is_main_process, cleanup
 from utils.wandb_utils import initialize_wandb
 
 
-def train_on_epoch_with_amp(epoch, epochs, train_loader, model, optimizer, scheduler, criterion, scaler, device):
+def train_on_epoch_with_amp(epoch, epochs, train_loader, model, optimizer, criterion, scaler, device):
     """
     Train on one epoch with AMP.
 
@@ -31,7 +31,6 @@ def train_on_epoch_with_amp(epoch, epochs, train_loader, model, optimizer, sched
         train_loader: DataLoader, the training data loader.
         model: nn.Module, the model to be trained.
         optimizer: Optimizer, the optimizer to be used.
-        scheduler: _LRScheduler, the learning rate scheduler.
         criterion: nn.Module, the loss function to be used.
         scaler: GradScaler, the scaler used for automatic mixed precision training.
         device: torch.device, the device to be used for training.
@@ -91,9 +90,6 @@ def train_on_epoch_with_amp(epoch, epochs, train_loader, model, optimizer, sched
         if is_main_process():
             pbar.set_description(f"(Train) Epoch {epoch + 1}/{epochs} | Loss: {loss:.4g} | Acc: {acc:.4g}")
 
-    # Update the learning rate if needed
-    scheduler.step()
-
     # Calculate the average loss and accuracy.
     avg_train_loss = train_loss / len(train_loader)
     avg_train_acc = train_acc / len(train_loader)
@@ -101,7 +97,7 @@ def train_on_epoch_with_amp(epoch, epochs, train_loader, model, optimizer, sched
     return avg_train_loss, avg_train_acc
 
 
-def train_on_epoch(epoch, epochs, train_loader, model, optimizer, scheduler, criterion, device):
+def train_on_epoch(epoch, epochs, train_loader, model, optimizer, criterion, device):
     """
     Train on one epoch without amp.
 
@@ -111,7 +107,6 @@ def train_on_epoch(epoch, epochs, train_loader, model, optimizer, scheduler, cri
         train_loader: DataLoader, the training data loader.
         model: nn.Module, the model to be trained.
         optimizer: Optimizer, the optimizer to be used.
-        scheduler: _LRScheduler, the learning rate scheduler.
         criterion: nn.Module, the loss function to be used.
         device: torch.device, the device to be used for training.
 
@@ -156,9 +151,6 @@ def train_on_epoch(epoch, epochs, train_loader, model, optimizer, scheduler, cri
         # Only update the progress bar on the main process.
         if is_main_process():
             pbar.set_description(f"(Train) Epoch {epoch + 1}/{epochs} | Loss: {loss:.4g} | Acc: {acc:.4g}")
-
-    # Update the learning rate if needed
-    scheduler.step()
 
     # Calculate the average loss and accuracy.
     avg_train_loss = train_loss / len(train_loader)
@@ -330,6 +322,9 @@ def main():
             })
             logger.info(f"Epoch {epoch + 1}/{epochs} | Train Loss: {avg_train_loss:.4g} | Train Acc: {avg_train_acc:.4g}")
             logger.info(f"Epoch {epoch + 1}/{epochs} | Val Loss: {avg_val_loss:.4g} | Val Acc: {avg_val_acc:.4g}")
+
+        # Update the learning rate if needed
+        scheduler.step(avg_val_loss)
 
         # Save the weights for every 5 epochs.
         if epoch%5 == 0 and is_main_process():
