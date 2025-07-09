@@ -75,17 +75,17 @@ def read_imagenette_dataset(image_size:int, data_dir: str, size:str):
                              std=[0.229, 0.224, 0.225])
     ])
 
-    if not os.path.exists(data_dir):
-        if is_main_process():
-            logger.info(f"Downloading and loading Imagenette dataset from {data_dir}.")
-        download = True
-    else:
-        if is_main_process():
-            logger.info(f"Loading Imagenette dataset from {data_dir}.")
-        download = False
-
-    # Use context to make sure that only the main process will read data.
+    # Use context to make sure that only the main process will download data.
     with torch_distributed_zero_first():
+        if not os.path.exists(data_dir):
+            if is_main_process():
+                logger.info(f"Downloading and loading Imagenette dataset from {data_dir}.")
+            download = True
+        else:
+            if is_main_process():
+                logger.info(f"Loading Imagenette dataset from {data_dir}.")
+            download = False
+
         train_dataset = Imagenette(data_dir, split='train', size=size, download=download, transform=train_transforms)
         val_dataset = Imagenette(data_dir, split='val', size=size, download=False, transform=val_transforms)
 
