@@ -3,6 +3,7 @@ import wandb
 import torch
 import argparse
 import torch.nn as nn
+from datetime import datetime
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
@@ -240,10 +241,12 @@ def main():
     args = parser_args()
 
     # Dynamically initialize logger based on args
+    current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
     logger = get_logger(
         file_name=__name__,
         wandb_project=args.wandb_project,
-        wandb_name=args.wandb_name
+        wandb_name=args.wandb_name,
+        current_time=current_time
     )
 
     # Set up the running environment
@@ -328,15 +331,16 @@ def main():
 
         # Save the weights for every 5 epochs.
         if epoch%5 == 0 and is_main_process():
-            save_path = f"{args.weights}/{args.wandb_project}/{args.wandb_name}/model_{epoch}.pth"
-            create_dirs(save_path)
+            save_dir = f"{args.weights}/{args.wandb_project}/{args.wandb_name}/{current_time}"
+            create_dirs(save_dir)
+            save_path = f"{save_dir}/model_{epoch}.pt"
             torch.save(model.state_dict(), save_path)
             logger.info(f"Model saved at epoch {epoch}.")
 
         # Save the best weights
         if avg_val_acc > best_val_acc and is_main_process():
             best_val_acc = avg_val_acc
-            save_path = f"{args.weights}/{args.wandb_project}/{args.wandb_name}/best_model_{epoch}.pth"
+            save_path = f"{args.weights}/{args.wandb_project}/{args.wandb_name}/{current_time}/best_model_{epoch}.pt"
             torch.save(model.state_dict(), save_path)
             logger.info(f"Best model saved at epoch {epoch}.")
 
