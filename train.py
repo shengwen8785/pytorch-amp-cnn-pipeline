@@ -263,14 +263,21 @@ def main():
     image_size = configs['image_size']
     train_dataset, val_dataset = read_imagenette_dataset(image_size, configs['path'], configs['size'], num_gpus)
 
-    # Use 'DistributedSampler' to ensure reasonable data distribution
-    train_sampler = DistributedSampler(train_dataset) if num_gpus > 1 else None
-    val_sampler = DistributedSampler(val_dataset) if num_gpus > 1 else None
-
-    # Create the 'train_loader' and the 'valid_loader'
+    # Use 'DistributedSampler' to ensure reasonable data distribution or set shuffle=True for single-GPU setup.
     batch_size, num_workers = configs['batch_size'], configs['workers']
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers, pin_memory=configs['pin_memory'])
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers, pin_memory=configs['pin_memory'])
+    if num_gpus > 1:
+        train_sampler = DistributedSampler(train_dataset)
+        val_sampler = DistributedSampler(val_dataset)
+        # Create the 'train_loader' and the 'valid_loader'
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers,
+                                  pin_memory=configs['pin_memory'])
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, sampler=val_sampler, num_workers=num_workers,
+                                pin_memory=configs['pin_memory'])
+    else:
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers,
+                                  pin_memory=configs['pin_memory'])
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers,
+                                pin_memory=configs['pin_memory'])
 
     # Load model architecture and initialize weights
     model = initialize_models(configs, num_gpus)
