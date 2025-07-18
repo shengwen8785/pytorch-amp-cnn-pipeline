@@ -351,7 +351,7 @@ def main():
             torch.save(model.state_dict(), save_path)
             logger.info(f"Best model saved at epoch {epoch}.")
 
-    cleanup()
+    cleanup(num_gpus)
     wandb.finish()
 
 if __name__ == '__main__':

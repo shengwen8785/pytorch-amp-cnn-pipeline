@@ -59,11 +59,18 @@ def initialize_device():
     return device, num_gpus
 
 
-def cleanup():
-    dist.destroy_process_group()
-    torch.cuda.empty_cache()
+def cleanup(num_gpus:int = 1):
+    """
+    destroy the process group and empty cache.
+    Args:
+        num_gpus: the number of available GPUs.
+    """
     logger = get_logger(file_name=__name__)
-    logger.info("Distributed training process has been terminated.")
+    if num_gpus > 1:
+        dist.destroy_process_group()
+        logger.info("Distributed training process has been terminated.")
+    torch.cuda.empty_cache()
+    logger.info("Empty cache has been completed.")
 
 
 @contextmanager
