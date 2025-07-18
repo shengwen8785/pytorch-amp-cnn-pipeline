@@ -6,12 +6,13 @@ from utils.log_utils import get_logger
 from utils.torch_utils import torch_distributed_zero_first, is_main_process
 
 
-def read_imagenet_dataset(image_size:int, data_dir: str):
+def read_imagenet_dataset(image_size:int, data_dir: str, num_gpus:int = 1):
     """
     Load ImageNet dataset (Only the primary process will load data).
     Args:
         image_size: the size of the input image.
         data_dir: the root directory of ImageNet dataset.
+        num_gpus: the number of available GPUs.
 
     Returns:
         train_dataset, val_dataset: ImageNet dataset.
@@ -39,19 +40,20 @@ def read_imagenet_dataset(image_size:int, data_dir: str):
     if is_main_process():
         logger.info(f"Loading ImageNet dataset from {data_dir}.")
 
-    with torch_distributed_zero_first():
+    with torch_distributed_zero_first(num_gpus):
         train_dataset = ImageNet(data_dir, split='train', transform=train_transforms)
         val_dataset = ImageNet(data_dir, split='val', transform=val_transforms)
 
     return train_dataset, val_dataset
 
-def read_imagenette_dataset(image_size:int, data_dir: str, size:str):
+def read_imagenette_dataset(image_size:int, data_dir: str, size:str, num_gpus:int = 1):
     """
     Download and load Imagenette dataset (Only the primary process will load data).
     Args:
         image_size: the size of the input image.
         size: the image size of Imagenette dataset. Supports "full"(default), "160px", "320px".
         data_dir: the root directory of ImageNet dataset.
+        num_gpus: the number of available GPUs.
 
     Returns:
         train_dataset, val_dataset: ImageNet dataset.
@@ -76,7 +78,7 @@ def read_imagenette_dataset(image_size:int, data_dir: str, size:str):
     ])
 
     # Use context to make sure that only the main process will download data.
-    with torch_distributed_zero_first():
+    with torch_distributed_zero_first(num_gpus):
         if not os.path.exists(data_dir):
             if is_main_process():
                 logger.info(f"Downloading and loading Imagenette dataset from {data_dir}.")

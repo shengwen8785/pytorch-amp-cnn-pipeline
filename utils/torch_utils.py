@@ -67,17 +67,19 @@ def cleanup():
 
 
 @contextmanager
-def torch_distributed_zero_first():
+def torch_distributed_zero_first(num_gpus: int = 1):
     """
     Let distributed processes wait for the rank = = 0 process to complete the necessary operations.
 
+    Args:
+        num_gpus: the number of available GPUs.
     """
-    if not is_main_process():
-        dist.barrier()  # Block non-main processes and wait for the main process
-    yield
-    if is_main_process():
-        dist.barrier()  # Let other processes continue conducting after the main process completed.
-
+    if num_gpus > 1:
+        if not is_main_process():
+            dist.barrier()  # Block non-main processes and wait for the main process
+        yield
+        if is_main_process():
+            dist.barrier()  # Let other processes continue conducting after the main process completed.
 
 if __name__ == "__main__":
     initialize_device()
