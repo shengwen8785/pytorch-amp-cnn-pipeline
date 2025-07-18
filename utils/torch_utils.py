@@ -80,6 +80,8 @@ def torch_distributed_zero_first(num_gpus: int = 1):
         yield
         if is_main_process():
             dist.barrier()  # Let other processes continue conducting after the main process completed.
+    else:
+        yield
 
 if __name__ == "__main__":
     initialize_device()
