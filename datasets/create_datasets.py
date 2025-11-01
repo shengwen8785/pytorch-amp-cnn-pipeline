@@ -1,0 +1,94 @@
+import os
+from torchvision import transforms
+from torchvision.datasets import ImageNet, Imagenette
+
+from utils.log_utils import get_logger
+from utils.torch_utils import torch_distributed_zero_first, is_main_process
+
+
+def read_imagenet_dataset(image_size:int, data_dir: str, num_gpus:int = 1):
+    """
+    Load ImageNet dataset (Only the primary process will load data).
+    Args:
+        image_size: the size of the input image.
+        data_dir: the root directory of ImageNet dataset.
+        num_gpus: the number of available GPUs.
+
+    Returns:
+        train_dataset, val_dataset: ImageNet dataset.
+    """
+    logger = get_logger(file_name=__name__)
+
+    # Preprocessing of training and validation
+    train_transforms = transforms.Compose([
+        transforms.RandomResizedCrop(image_size),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
+    ])
+
+    val_transforms = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(image_size),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
+    ])
+
+    # Use context to make sure that only the main process will read data.
+    if is_main_process():
+        logger.info(f"Loading ImageNet dataset from {data_dir}.")
+
+    with torch_distributed_zero_first(num_gpus):
+        train_dataset = ImageNet(data_dir, split='train', transform=train_transforms)
+        val_dataset = ImageNet(data_dir, split='val', transform=val_transforms)
+
+    return train_dataset, val_dataset
+
+def read_imagenette_dataset(image_size:int, data_dir: str, size:str, num_gpus:int = 1):
+    """
+    Download and load Imagenette dataset (Only the primary process will load data).
+    Args:
+        image_size: the size of the input image.
+        size: the image size of Imagenette dataset. Supports "full"(default), "160px", "320px".
+        data_dir: the root directory of ImageNet dataset.
+        num_gpus: the number of available GPUs.
+
+    Returns:
+        train_dataset, val_dataset: ImageNet dataset.
+    """
+    logger = get_logger(file_name=__name__)
+
+    # Preprocessing of training and validation
+    train_transforms = transforms.Compose([
+        transforms.RandomResizedCrop(image_size),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
+    ])
+
+    val_transforms = transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(image_size),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
+    ])
+
+    # Use context to make sure that only the main process will download data.
+    with torch_distributed_zero_first(num_gpus):
+        if not os.path.exists(data_dir):
+            if is_main_process():
+                logger.info(f"Downloading and loading Imagenette dataset from {data_dir}.")
+            download = True
+        else:
+            if is_main_process():
+                logger.info(f"Loading Imagenette dataset from {data_dir}.")
+            download = False
+
+        train_dataset = Imagenette(data_dir, split='train', size=size, download=download, transform=train_transforms)
+        val_dataset = Imagenette(data_dir, split='val', size=size, download=False, transform=val_transforms)
+
+    return train_dataset, val_dataset

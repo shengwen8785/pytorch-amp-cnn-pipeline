@@ -1,0 +1,24 @@
+classes: 1000
+model: resnet50
+weights: null  # Or Set "DEFAULT" to use pre-trained weights.
+path: data/imagenet/2012  # the path to the root directory of the dataset.
+
+# Hyper-parameters
+epoch: 100
+batch_size: 128
+image_size: 224
+
+# Optimizer Configuration
+optimizer: SGD
+lr: 0.01
+momentum: 0.9
+weight_decay: 0.0005
+
+# Scheduler Configuration
+scheduler: ReduceLROnPlateau
+mode: min
+patience: 1
+
+# Pytorch DataLoader
+workers: 16
+pin_memory: True
