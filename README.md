@@ -51,10 +51,7 @@ Let's get started!
 7. [A letter to readers](#a-letter-to-readers)
 
 ---
-
 ## Introduction
-model and dataset...
-
 ### RunPod
 In my opinion, RunPod provides a cloud platform with various levels of GPUs for training, deploying, and scaling AI models.
 
