@@ -347,7 +347,7 @@ def main():
         # Save the best weights
         if avg_val_acc > best_val_acc and is_main_process():
             best_val_acc = avg_val_acc
-            save_path = f"{args.weights}/{args.wandb_project}/{args.wandb_name}/{current_time}/best_model_{epoch}.pt"
+            save_path = f"{args.weights}/{args.wandb_project}/{args.wandb_name}/{current_time}/best_model.pt"
             torch.save(model.state_dict(), save_path)
             logger.info(f"Best model saved at epoch {epoch}.")
 
